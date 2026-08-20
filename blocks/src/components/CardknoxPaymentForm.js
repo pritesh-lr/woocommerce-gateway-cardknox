@@ -234,18 +234,52 @@ const CardknoxPaymentForm = (props) => {
     }, []);
 
     const handleIFieldUpdate = useCallback((data) => {
-        // Live autofill/input can briefly report invalid CVV/card states.
-        // Only clear errors here — never set card/cvv errors during typing/autofill.
-        // Submit-time validation (getTokens) owns those messages.
+        // Autofill: never flash card/cvv validation messages.
+        // Manual typing: show message only for the active field being edited.
         setErrors((prev) => {
             const next = { ...prev };
             let changed = false;
 
-            if (data.cardNumberIsValid && next.cardNumber) {
+            if (data.__cardknoxAutofill) {
+                if (next.cardNumber) {
+                    delete next.cardNumber;
+                    changed = true;
+                }
+                if (next.cvv) {
+                    delete next.cvv;
+                    changed = true;
+                }
+                return changed ? next : prev;
+            }
+
+            if (Object.prototype.hasOwnProperty.call(data, '__cardknoxCardError')) {
+                const cardMessage = data.__cardknoxCardError || '';
+                if (cardMessage) {
+                    if (next.cardNumber !== cardMessage) {
+                        next.cardNumber = cardMessage;
+                        changed = true;
+                    }
+                } else if (next.cardNumber) {
+                    delete next.cardNumber;
+                    changed = true;
+                }
+            } else if (data.cardNumberIsValid && next.cardNumber) {
                 delete next.cardNumber;
                 changed = true;
             }
-            if (data.cvvIsValid && next.cvv) {
+
+            if (Object.prototype.hasOwnProperty.call(data, '__cardknoxCvvError')) {
+                const cvvMessage = data.__cardknoxCvvError || '';
+                if (cvvMessage) {
+                    if (next.cvv !== cvvMessage) {
+                        next.cvv = cvvMessage;
+                        changed = true;
+                    }
+                } else if (next.cvv) {
+                    delete next.cvv;
+                    changed = true;
+                }
+            } else if (data.cvvIsValid && next.cvv) {
                 delete next.cvv;
                 changed = true;
             }

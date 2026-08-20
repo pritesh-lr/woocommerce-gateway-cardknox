@@ -1,8 +1,12 @@
 import { useCallback, useRef } from '@wordpress/element';
 
+const getErrorNode = (fieldName) =>
+	document.querySelector(`[data-cardknox-error="${fieldName}"]`);
+
 const useCardknoxIFields = () => {
 	const isInitializedRef = useRef(false);
 	const updateCallbackRef = useRef(null);
+	const autofillSuppressUntilRef = useRef(0);
 
 	// Clears WooCommerce checkout banners that sometimes stick around
 	const clearWooNotices = () => {
@@ -12,12 +16,18 @@ const useCardknoxIFields = () => {
 		groups.forEach((g) => g.remove());
 	};
 
-	const setInlineErrorVisibility = (fieldName, shouldShow) => {
-		const errorNode = document.querySelector(`[data-ifields-id="${fieldName}-error"]`);
-		if (errorNode) {
-			errorNode.setAttribute('data-cardknox-visible', shouldShow ? 'true' : 'false');
+	const setInlineError = (fieldName, message = '') => {
+		const errorNode = getErrorNode(fieldName);
+		if (!errorNode) {
+			return;
 		}
+
+		errorNode.textContent = message || '';
+		errorNode.setAttribute('data-cardknox-visible', message ? 'true' : 'false');
+		errorNode.setAttribute('aria-hidden', message ? 'false' : 'true');
 	};
+
+	const isAutofillSuppressed = () => Date.now() < autofillSuppressUntilRef.current;
 
 	const initializeIFields = useCallback(
 		({
@@ -99,25 +109,47 @@ const useCardknoxIFields = () => {
 				window.enableEnterKey('cvv');
 			}
 
-			// Modern callback -> fires on every keystroke with rich data
 			if (window.addIfieldCallback && window.setIfieldStyle) {
+				const prevLengths = { card: 0, cvv: 0 };
+
+				const markAutofillWindow = () => {
+					autofillSuppressUntilRef.current = Date.now() + 1000;
+					setInlineError('card-number', '');
+					setInlineError('cvv', '');
+				};
+
+				// Autofill must never flash validation messages.
+				window.addIfieldCallback('autofill', function (data) {
+					markAutofillWindow();
+					updateCallbackRef.current?.({
+						...data,
+						__cardknoxAutofill: true,
+						__cardknoxCardError: '',
+						__cardknoxCvvError: '',
+					});
+				});
+
 				window.addIfieldCallback('input', function (data) {
-					updateCallbackRef.current?.(data);
-
-					// DOM nodes for inline errors (make sure these exist in your markup)
-					const cardNumberError = document.querySelector(
-						'[data-ifields-id="card-number-error"]'
-					);
-					const cvvError = document.querySelector('[data-ifields-id="cvv-error"]');
-
 					const cardLen =
 						typeof data.cardNumberLength === 'number' ? data.cardNumberLength : 0;
 					const cvvLen =
 						typeof data.cvvLength === 'number' ? data.cvvLength : 0;
-					const shouldValidateCardNumber = cardLen > 0;
-					const shouldValidateCvv = cvvLen > 0;
+					const amex = data.issuer === 'amex';
+					const expectedLen = amex ? 4 : 3;
+					const cvvLooksValid = cvvLen === expectedLen && !!data.cvvIsValid;
 
-					// Card Number visuals + message
+					// Browser/password-manager autofill usually dumps many digits at once.
+					if (cardLen - prevLengths.card >= 5 || (prevLengths.card === 0 && cardLen >= 12)) {
+						markAutofillWindow();
+					}
+					if (cvvLen - prevLengths.cvv >= 3 && prevLengths.cvv === 0 && cardLen > 0) {
+						markAutofillWindow();
+					}
+					prevLengths.card = cardLen;
+					prevLengths.cvv = cvvLen;
+
+					const autofillActive = isAutofillSuppressed();
+
 					window.setIfieldStyle(
 						'card-number',
 						cardLen <= 0
@@ -127,28 +159,6 @@ const useCardknoxIFields = () => {
 							: invalidStyle
 					);
 
-					if (cardNumberError) {
-						cardNumberError.textContent =
-							!shouldValidateCardNumber
-								? ''
-								: data.cardNumberIsValid
-								? ''
-								: 'Invalid card number';
-						cardNumberError.setAttribute(
-							'aria-hidden',
-							cardNumberError.textContent ? 'false' : 'true'
-						);
-						setInlineErrorVisibility(
-							'card-number',
-							shouldValidateCardNumber && !!cardNumberError.textContent
-						);
-					}
-
-					// CVV visuals + message (depends on issuer)
-					const amex = data.issuer === 'amex';
-					const expectedLen = amex ? 4 : 3;
-					const cvvLooksValid = cvvLen === expectedLen && data.cvvIsValid;
-
 					window.setIfieldStyle(
 						'cvv',
 						data.issuer === 'unknown' || cvvLen <= 0
@@ -157,30 +167,34 @@ const useCardknoxIFields = () => {
 							? validStyleCvv
 							: invalidStyleCvv
 					);
-					if (cvvError) {
-						cvvError.textContent =
-							!shouldValidateCvv
-								? ''
-								: cvvLooksValid
-								? ''
-								: 'Invalid CVV';
-						cvvError.setAttribute(
-							'aria-hidden',
-							cvvError.textContent ? 'false' : 'true'
-						);
-						setInlineErrorVisibility(
-							'cvv',
-							shouldValidateCvv && !!cvvError.textContent
-						);
+
+					// Show live messages for invalid non-empty values, except during autofill.
+					let cardErrorMessage = '';
+					let cvvErrorMessage = '';
+
+					if (!autofillActive && cardLen > 0 && !data.cardNumberIsValid) {
+						cardErrorMessage = 'Invalid card number';
+					}
+					if (!autofillActive && cvvLen > 0 && !cvvLooksValid) {
+						cvvErrorMessage = 'Invalid CVV';
 					}
 
-					// If both fields are valid, also clear sticky Woo notices
+					setInlineError('card-number', cardErrorMessage);
+					setInlineError('cvv', cvvErrorMessage);
+
+					updateCallbackRef.current?.({
+						...data,
+						__cardknoxAutofill: autofillActive,
+						__cardknoxCardError: cardErrorMessage,
+						__cardknoxCvvError: cvvErrorMessage,
+					});
+
 					if (data.cardNumberIsValid && cvvLooksValid) {
 						clearWooNotices();
 					}
 				});
 
-				// Update CVV when issuer changes (e.g. 3 -> 4 for Amex)
+				// Update CVV style when issuer changes (e.g. 3 -> 4 for Amex)
 				window.addIfieldCallback('issuerupdated', function (data) {
 					const cvvLen =
 						typeof data.cvvLength === 'number' ? data.cvvLength : 0;
@@ -196,58 +210,62 @@ const useCardknoxIFields = () => {
 							? validStyleCvv
 							: invalidStyleCvv
 					);
-					setInlineErrorVisibility('cvv', cvvLen > 0 && !cvvLooksValid);
+
+					if (cvvLooksValid || isAutofillSuppressed()) {
+						setInlineError('cvv', '');
+					}
 				});
 			}
 			// Fallback (older iFields only expose keypress callback)
 			else if (window.addIfieldKeyPressCallback && window.setIfieldStyle) {
 				window.addIfieldKeyPressCallback(function (data) {
-					updateCallbackRef.current?.(data);
-
 					const cardNumberToken = document.querySelector(
 						'[data-ifields-id="card-number-token"]'
 					)?.value;
 					const cvvToken = document.querySelector('[data-ifields-id="cvv-token"]')
 						?.value;
-					const cardNumberError = document.querySelector(
-						'[data-ifields-id="card-number-error"]'
-					);
-					const cvvError = document.querySelector('[data-ifields-id="cvv-error"]');
+					const cardLen =
+						typeof data.cardNumberLength === 'number' ? data.cardNumberLength : 0;
+					const cvvLen = typeof data.cvvLength === 'number' ? data.cvvLength : 0;
+					const amex = data.issuer === 'amex';
+					const expectedLen = amex ? 4 : 3;
+					const cvvLooksValid = cvvLen === expectedLen && !!data.cvvIsValid;
+					let cardErrorMessage = '';
+					let cvvErrorMessage = '';
 
-					// Card
 					if (cardNumberToken || data.cardNumberIsValid) {
 						window.setIfieldStyle('card-number', validStyle);
-						if (cardNumberError) cardNumberError.textContent = '';
-						setInlineErrorVisibility('card-number', false);
-					} else if (data.cardNumberLength > 0) {
+						setInlineError('card-number', '');
+					} else if (cardLen > 0) {
 						window.setIfieldStyle('card-number', invalidStyle);
-						if (cardNumberError)
-							cardNumberError.textContent = 'Invalid card number';
-						setInlineErrorVisibility('card-number', true);
+						cardErrorMessage = 'Invalid card number';
+						setInlineError('card-number', cardErrorMessage);
 					} else {
 						window.setIfieldStyle('card-number', defaultStyle);
-						if (cardNumberError) cardNumberError.textContent = '';
-						setInlineErrorVisibility('card-number', false);
+						setInlineError('card-number', '');
 					}
 
-					// CVV
-					if (cvvToken || data.cvvIsValid) {
+					if (cvvToken || cvvLooksValid) {
 						window.setIfieldStyle('cvv', validStyleCvv);
-						if (cvvError) cvvError.textContent = '';
-						setInlineErrorVisibility('cvv', false);
-					} else if (data.cvvLength > 0) {
+						setInlineError('cvv', '');
+					} else if (cvvLen > 0) {
 						window.setIfieldStyle('cvv', invalidStyleCvv);
-						if (cvvError) cvvError.textContent = 'Invalid CVV';
-						setInlineErrorVisibility('cvv', true);
+						cvvErrorMessage = 'Invalid CVV';
+						setInlineError('cvv', cvvErrorMessage);
 					} else {
 						window.setIfieldStyle('cvv', defaultStyleCvv);
-						if (cvvError) cvvError.textContent = '';
-						setInlineErrorVisibility('cvv', false);
+						setInlineError('cvv', '');
 					}
+
+					updateCallbackRef.current?.({
+						...data,
+						__cardknoxCardError: cardErrorMessage,
+						__cardknoxCvvError: cvvErrorMessage,
+					});
 
 					if (
 						(cardNumberToken || data.cardNumberIsValid) &&
-						(cvvToken || data.cvvIsValid)
+						(cvvToken || cvvLooksValid)
 					) {
 						clearWooNotices();
 					}
@@ -281,15 +299,8 @@ const useCardknoxIFields = () => {
 				return;
 			}
 
-			// Prepare inline error nodes
-			const cardNumberError = document.querySelector(
-				'[data-ifields-id="card-number-error"]'
-			);
-			const cvvError = document.querySelector('[data-ifields-id="cvv-error"]');
-			if (cardNumberError) cardNumberError.textContent = '';
-			if (cvvError) cvvError.textContent = '';
-			setInlineErrorVisibility('card-number', false);
-			setInlineErrorVisibility('cvv', false);
+			setInlineError('card-number', '');
+			setInlineError('cvv', '');
 
 			// Call iFields to tokenize; add our own timeout guard
 			let finished = false;
@@ -315,17 +326,15 @@ const useCardknoxIFields = () => {
 					// If either is missing, show "required" and focus first
 					if (!cardNumberToken || !cvvToken) {
 						if (!cardNumberToken) {
-							cardNumberError &&
-								(cardNumberError.textContent = 'Card Number is required');
+							setInlineError('card-number', 'Card Number is required');
 							window.setIfieldStyle &&
 								window.setIfieldStyle('card-number', {
 									border: '1px solid #d63638',
 								});
 							window.focusIfield && window.focusIfield('card-number');
-							setInlineErrorVisibility('card-number', true);
 						}
 						if (!cvvToken) {
-							cvvError && (cvvError.textContent = 'CVV is required');
+							setInlineError('cvv', 'CVV is required');
 							window.setIfieldStyle &&
 								window.setIfieldStyle('cvv', {
 									border: '1px solid #d63638',
@@ -333,7 +342,6 @@ const useCardknoxIFields = () => {
 							if (cardNumberToken) {
 								window.focusIfield && window.focusIfield('cvv');
 							}
-							setInlineErrorVisibility('cvv', true);
 						}
 						reject(new Error('Please fill in all required fields'));
 						return;
@@ -345,16 +353,8 @@ const useCardknoxIFields = () => {
 					window.setIfieldStyle &&
 						window.setIfieldStyle('cvv', { border: '1px solid #46b450' });
 
-					if (cardNumberError) {
-						cardNumberError.textContent = '';
-						cardNumberError.setAttribute('aria-hidden', 'true');
-					}
-					if (cvvError) {
-						cvvError.textContent = '';
-						cvvError.setAttribute('aria-hidden', 'true');
-					}
-					setInlineErrorVisibility('card-number', false);
-					setInlineErrorVisibility('cvv', false);
+					setInlineError('card-number', '');
+					setInlineError('cvv', '');
 
 					clearWooNotices();
 					resolve({ cardNumberToken, cvvToken });
@@ -364,22 +364,17 @@ const useCardknoxIFields = () => {
 					finished = true;
 					clearTimeout(tid);
 
-					// Conservative messages if the lib did not populate our errors
-					const cardNumberErrorEl = document.querySelector('[data-ifields-id="card-number-error"]');
-					const cvvErrorEl = document.querySelector('[data-ifields-id="cvv-error"]');
+					const cardNumberErrorEl = getErrorNode('card-number');
+					const cvvErrorEl = getErrorNode('cvv');
 
 					if (cardNumberErrorEl && !cardNumberErrorEl.textContent) {
-						cardNumberErrorEl.textContent = 'Invalid card number';
+						setInlineError('card-number', 'Invalid card number');
 					}
 					if (cvvErrorEl && !cvvErrorEl.textContent) {
-						cvvErrorEl.textContent = 'Invalid CVV';
+						setInlineError('cvv', 'Invalid CVV');
 					}
-					setInlineErrorVisibility('card-number', !!cardNumberErrorEl?.textContent);
-					setInlineErrorVisibility('cvv', !!cvvErrorEl?.textContent);
 
-					// Focus likely-invalid field to help user
 					if (window.focusIfield) {
-						// Prefer card first unless we know it's valid
 						const last =
 							window.getLastIfieldState && window.getLastIfieldState();
 						const target =

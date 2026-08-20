@@ -82,7 +82,6 @@ const CardknoxIFields = ({ errors, onExpiryChange, ValidationInputError, cardDat
                         data-cardknox-visible="false"
                         aria-hidden="true"
                     ></div>
-                    {errors.cardNumber && <ValidationInputError errorMessage={errors.cardNumber} />}
                 </div>
             </div>
 
@@ -164,7 +163,6 @@ const CardknoxIFields = ({ errors, onExpiryChange, ValidationInputError, cardDat
                         data-cardknox-visible="false"
                         aria-hidden="true"
                     ></div>
-                    {errors.cvv && <ValidationInputError errorMessage={errors.cvv} />}
                 </div>
             </div>
 

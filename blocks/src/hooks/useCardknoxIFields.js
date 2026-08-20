@@ -3,6 +3,13 @@ import { useCallback, useRef } from '@wordpress/element';
 const getErrorNode = (fieldName) =>
 	document.querySelector(`[data-cardknox-error="${fieldName}"]`);
 
+// Same filled "error" icon used by WooCommerce Blocks validation messages
+const VALIDATION_ERROR_ICON = `
+	<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
+		<path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"></path>
+	</svg>
+`;
+
 const useCardknoxIFields = () => {
 	const isInitializedRef = useRef(false);
 	const updateCallbackRef = useRef(null);
@@ -22,9 +29,19 @@ const useCardknoxIFields = () => {
 			return;
 		}
 
-		errorNode.textContent = message || '';
-		errorNode.setAttribute('data-cardknox-visible', message ? 'true' : 'false');
-		errorNode.setAttribute('aria-hidden', message ? 'false' : 'true');
+		if (message) {
+			errorNode.className = 'cardknox-field-error wc-block-components-validation-error';
+			errorNode.innerHTML = `${VALIDATION_ERROR_ICON}<span>${message}</span>`;
+			errorNode.setAttribute('data-cardknox-visible', 'true');
+			errorNode.setAttribute('aria-hidden', 'false');
+			errorNode.setAttribute('role', 'alert');
+		} else {
+			errorNode.className = 'cardknox-field-error';
+			errorNode.innerHTML = '';
+			errorNode.setAttribute('data-cardknox-visible', 'false');
+			errorNode.setAttribute('aria-hidden', 'true');
+			errorNode.removeAttribute('role');
+		}
 	};
 
 	const isAutofillSuppressed = () => Date.now() < autofillSuppressUntilRef.current;
@@ -93,7 +110,7 @@ const useCardknoxIFields = () => {
 			const invalidStyleCvv = {
 				...defaultStyleCvv,
 				border: '1px solid #d63638',
-				'background-color': '#fef5f5',
+				'background-color': 'transparent',
 			};
 
 			// Set initial styles

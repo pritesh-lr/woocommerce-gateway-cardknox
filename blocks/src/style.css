@@ -102,6 +102,11 @@
     min-height: 20px;
 }
 
+[data-ifields-id="card-number-error"][data-cardknox-visible="false"],
+[data-ifields-id="cvv-error"][data-cardknox-visible="false"] {
+    display: none;
+}
+
 /* Hide empty error messages */
 [data-ifields-id="card-number-error"]:empty,
 [data-ifields-id="cvv-error"]:empty {

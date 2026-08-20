@@ -240,21 +240,27 @@ const CardknoxPaymentForm = (props) => {
         // Check if tokens exist first
         const cardNumberToken = document.querySelector('[data-ifields-id="card-number-token"]')?.value;
         const cvvToken = document.querySelector('[data-ifields-id="cvv-token"]')?.value;
+        const cardNumberLength = typeof data.cardNumberLength === 'number' ? data.cardNumberLength : 0;
+        const cvvLength = typeof data.cvvLength === 'number' ? data.cvvLength : 0;
+        const shouldValidateCardNumber =
+            data.lastActiveField === 'card-number' || cardNumberLength > 0 || !!cardNumberToken;
+        const shouldValidateCvv =
+            data.lastActiveField === 'cvv' || cvvLength > 0 || !!cvvToken;
 
-        if (data.lastActiveField === 'card-number' || data.cardNumberLength !== undefined) {
+        if (shouldValidateCardNumber) {
             if (cardNumberToken || data.cardNumberIsValid) {
                 delete newErrors.cardNumber;
-            } else if (data.cardNumberLength > 0 && !data.cardNumberIsValid) {
+            } else if (cardNumberLength > 0 && !data.cardNumberIsValid) {
                 newErrors.cardNumber = __('Invalid card number', 'woo-cardknox-gateway');
             } else {
                 delete newErrors.cardNumber;
             }
         }
 
-        if (data.lastActiveField === 'cvv' || data.cvvLength !== undefined) {
+        if (shouldValidateCvv) {
             if (cvvToken || data.cvvIsValid) {
                 delete newErrors.cvv;
-            } else if (data.cvvLength > 0 && !data.cvvIsValid) {
+            } else if (cvvLength > 0 && !data.cvvIsValid) {
                 newErrors.cvv = __('Invalid CVV', 'woo-cardknox-gateway');
             } else {
                 delete newErrors.cvv;

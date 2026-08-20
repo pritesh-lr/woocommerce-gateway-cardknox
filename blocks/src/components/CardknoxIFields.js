@@ -4,14 +4,10 @@
 import { __ } from '@wordpress/i18n';
 import { useEffect } from '@wordpress/element';
 
-//const cardLogoUrl = wcCardknoxData?.cardLogoUrl || '';
 const cardLogoUrl = window.wcCardknoxData?.cardLogoUrl || '';
 
 const CardknoxIFields = ({ errors, onExpiryChange, ValidationInputError, cardData }) => {
-    
-
     const validateExpiry = () => {
-
         if (!cardData.expiryMonth || !cardData.expiryYear) {
             return false;
         }
@@ -35,7 +31,6 @@ const CardknoxIFields = ({ errors, onExpiryChange, ValidationInputError, cardDat
         const cvvContainer = document.querySelector('.cvv-container');
         if (cardContainer) cardContainer.style.border = '0';
         if (cvvContainer) cvvContainer.style.border = '0';
-        
     }, []);
 
     return (
@@ -80,8 +75,13 @@ const CardknoxIFields = ({ errors, onExpiryChange, ValidationInputError, cardDat
                 </div>
 
                 <div className="cardknox-error-container">
-                    {/* Container used by the SDK + React error fallback */}
-                    <div data-ifields-id="card-number-error"></div>
+                    {/* Custom error node — NOT data-ifields-id so Cardknox SDK cannot auto-inject autofill flashes */}
+                    <div
+                        className="cardknox-field-error"
+                        data-cardknox-error="card-number"
+                        data-cardknox-visible="false"
+                        aria-hidden="true"
+                    ></div>
                     {errors.cardNumber && <ValidationInputError errorMessage={errors.cardNumber} />}
                 </div>
             </div>
@@ -158,7 +158,12 @@ const CardknoxIFields = ({ errors, onExpiryChange, ValidationInputError, cardDat
                             title="CVV"
                         ></iframe>
                     </div>
-                    <div data-ifields-id="cvv-error"></div>
+                    <div
+                        className="cardknox-field-error"
+                        data-cardknox-error="cvv"
+                        data-cardknox-visible="false"
+                        aria-hidden="true"
+                    ></div>
                     {errors.cvv && <ValidationInputError errorMessage={errors.cvv} />}
                 </div>
             </div>

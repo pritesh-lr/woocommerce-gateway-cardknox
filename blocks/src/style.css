@@ -70,8 +70,10 @@
 }
 
 /* Ensure proper iframe styling; borders are inside iField */
-
-.cardknox-iframe-container { position: relative !important; overflow: hidden !important; }
+.cardknox-iframe-container {
+    position: relative !important;
+    overflow: hidden !important;
+}
 
 /* Ensure iField container has enough height and no visible border */
 .cardknox-iframe-container,
@@ -87,11 +89,9 @@
     width: 100%;
 }
 
-
-/* Error messages after ifields */
-[data-ifields-id="card-number-error"],
-[data-ifields-id="cvv-error"] {
-    display: block;
+/* Controlled error nodes (not SDK-managed data-ifields-id) */
+.cardknox-field-error {
+    display: none;
     clear: both;
     width: 100%;
     margin-top: 5px;
@@ -99,18 +99,14 @@
     color: #cc1818;
     font-size: 14px;
     line-height: 1.4;
-    min-height: 20px;
 }
 
-[data-ifields-id="card-number-error"][data-cardknox-visible="false"],
-[data-ifields-id="cvv-error"][data-cardknox-visible="false"] {
+.cardknox-field-error[data-cardknox-visible="true"] {
+    display: block;
+}
+
+.cardknox-field-error:empty {
     display: none;
-}
-
-/* Hide empty error messages */
-[data-ifields-id="card-number-error"]:empty,
-[data-ifields-id="cvv-error"]:empty {
-    min-height: 0;
     margin: 0;
 }
 
@@ -119,7 +115,7 @@
     .cardknox-row {
         flex-direction: column;
     }
-    
+
     .cardknox-row .form-row {
         width: 100%;
     }
@@ -175,14 +171,14 @@
     display: inline-block;
     color: #1e1e1e;
 }
-#radio-control-wc-payment-method-options-cardknox__content .wc-block-components-checkbox.wc-block-components-payment-methods__save-card-info{
+
+/* Hide WooCommerce Blocks native save checkbox (we render our own) */
+#radio-control-wc-payment-method-options-cardknox__content
+    .wc-block-components-checkbox.wc-block-components-payment-methods__save-card-info {
     display: none !important;
 }
-.cardknox-error-container [data-ifields-id="card-number-error"] ~ .wc-block-components-validation-error,
-[data-ifields-id="cvv-error"] ~ .wc-block-components-validation-error {
-    display: none;
-}
-.credit-row{
+
+.credit-row {
     display: flex;
     flex-direction: column;
 }

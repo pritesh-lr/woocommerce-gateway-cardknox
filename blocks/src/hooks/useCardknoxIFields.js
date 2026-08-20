@@ -114,9 +114,8 @@ const useCardknoxIFields = () => {
 						typeof data.cardNumberLength === 'number' ? data.cardNumberLength : 0;
 					const cvvLen =
 						typeof data.cvvLength === 'number' ? data.cvvLength : 0;
-					const shouldValidateCardNumber =
-						data.lastActiveField === 'card-number' || cardLen > 0;
-					const shouldValidateCvv = data.lastActiveField === 'cvv' || cvvLen > 0;
+					const shouldValidateCardNumber = cardLen > 0;
+					const shouldValidateCvv = cvvLen > 0;
 
 					// Card Number visuals + message
 					window.setIfieldStyle(
@@ -132,8 +131,6 @@ const useCardknoxIFields = () => {
 						cardNumberError.textContent =
 							!shouldValidateCardNumber
 								? ''
-								: cardLen <= 0
-								? 'Card Number is required'
 								: data.cardNumberIsValid
 								? ''
 								: 'Invalid card number';
@@ -164,8 +161,6 @@ const useCardknoxIFields = () => {
 						cvvError.textContent =
 							!shouldValidateCvv
 								? ''
-								: cvvLen <= 0
-								? 'CVV is required'
 								: cvvLooksValid
 								? ''
 								: 'Invalid CVV';
@@ -231,8 +226,7 @@ const useCardknoxIFields = () => {
 						setInlineErrorVisibility('card-number', true);
 					} else {
 						window.setIfieldStyle('card-number', defaultStyle);
-						if (cardNumberError)
-							cardNumberError.textContent = 'Card Number is required';
+						if (cardNumberError) cardNumberError.textContent = '';
 						setInlineErrorVisibility('card-number', false);
 					}
 
@@ -247,7 +241,7 @@ const useCardknoxIFields = () => {
 						setInlineErrorVisibility('cvv', true);
 					} else {
 						window.setIfieldStyle('cvv', defaultStyleCvv);
-						if (cvvError) cvvError.textContent = 'CVV is required';
+						if (cvvError) cvvError.textContent = '';
 						setInlineErrorVisibility('cvv', false);
 					}
 

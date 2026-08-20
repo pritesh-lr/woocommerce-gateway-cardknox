@@ -234,50 +234,36 @@ const CardknoxPaymentForm = (props) => {
     }, []);
 
     const handleIFieldUpdate = useCallback((data) => {
-        // Update validation state based on iField data
-        const newErrors = { ...errors };
+        // Live autofill/input can briefly report invalid CVV/card states.
+        // Only clear errors here — never set card/cvv errors during typing/autofill.
+        // Submit-time validation (getTokens) owns those messages.
+        setErrors((prev) => {
+            const next = { ...prev };
+            let changed = false;
 
-        // Check if tokens exist first
+            if (data.cardNumberIsValid && next.cardNumber) {
+                delete next.cardNumber;
+                changed = true;
+            }
+            if (data.cvvIsValid && next.cvv) {
+                delete next.cvv;
+                changed = true;
+            }
+
+            return changed ? next : prev;
+        });
+
         const cardNumberToken = document.querySelector('[data-ifields-id="card-number-token"]')?.value;
         const cvvToken = document.querySelector('[data-ifields-id="cvv-token"]')?.value;
-        const cardNumberLength = typeof data.cardNumberLength === 'number' ? data.cardNumberLength : 0;
-        const cvvLength = typeof data.cvvLength === 'number' ? data.cvvLength : 0;
-        const shouldValidateCardNumber =
-            data.lastActiveField === 'card-number' || cardNumberLength > 0 || !!cardNumberToken;
-        const shouldValidateCvv =
-            data.lastActiveField === 'cvv' || cvvLength > 0 || !!cvvToken;
-
-        if (shouldValidateCardNumber) {
-            if (cardNumberToken || data.cardNumberIsValid) {
-                delete newErrors.cardNumber;
-            } else if (cardNumberLength > 0 && !data.cardNumberIsValid) {
-                newErrors.cardNumber = __('Invalid card number', 'woo-cardknox-gateway');
-            } else {
-                delete newErrors.cardNumber;
-            }
-        }
-
-        if (shouldValidateCvv) {
-            if (cvvToken || data.cvvIsValid) {
-                delete newErrors.cvv;
-            } else if (cvvLength > 0 && !data.cvvIsValid) {
-                newErrors.cvv = __('Invalid CVV', 'woo-cardknox-gateway');
-            } else {
-                delete newErrors.cvv;
-            }
-        }
-
-        setErrors(newErrors);
         const cardNumberValid = !!(cardNumberToken || data.cardNumberIsValid);
         const cvvValid = !!(cvvToken || data.cvvIsValid);
         setIsValid(cardNumberValid && cvvValid);
 
-        // Containers must not draw borders now; iField content handles it. Clear any container borders.
         const cardContainer = document.querySelector('.cardknox-iframe-container');
         const cvvContainer = document.querySelector('.cvv-container');
         if (cardContainer) cardContainer.style.border = '0';
         if (cvvContainer) cvvContainer.style.border = '0';
-    }, [errors]);
+    }, []);
 
     const handleExpiryChange = (field, value) => {
         setCardData(prev => ({

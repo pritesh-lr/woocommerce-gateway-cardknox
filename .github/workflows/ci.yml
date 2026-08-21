@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Aikido Safe Chain installer, pinned by release tag + checksum.
+  # Bump both values together: https://github.com/AikidoSec/safe-chain/releases
+  SAFE_CHAIN_INSTALLER_VERSION: '1.5.15'
+  SAFE_CHAIN_INSTALLER_SHA256: 'de0565e3d6346407a604e84e639e95fea8758748063da2216bbfdca5feda5dd2'
+
+jobs:
+  blocks:
+    name: Safe Chain gate + blocks build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: blocks
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # This job never pushes, so do not leave GITHUB_TOKEN in .git/config
+          # where a later step or a compromised dependency could read it.
+          persist-credentials: false
+
+      # Node must be installed before Safe Chain, so the Safe Chain shims end up
+      # ahead of the real npm on PATH.
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: blocks/package-lock.json
+
+      - name: Install Aikido Safe Chain
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          installer="$RUNNER_TEMP/install-safe-chain.sh"
+          curl -fsSL "https://github.com/AikidoSec/safe-chain/releases/download/${SAFE_CHAIN_INSTALLER_VERSION}/install-safe-chain.sh" -o "$installer"
+          echo "${SAFE_CHAIN_INSTALLER_SHA256}  $installer" | sha256sum -c -
+          # --ci installs executable shims (npm, npx, yarn, pnpm, pip, ...) and
+          # appends them to GITHUB_PATH instead of using interactive shell aliases.
+          sh "$installer" --ci
+          rm -f "$installer"
+
+      # The installer only warns if `safe-chain setup-ci` fails, which would leave
+      # the installs below unscanned. Fail the build instead of silently degrading.
+      - name: Verify Safe Chain is intercepting npm
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          safe-chain --version
+          npm_path="$(command -v npm)"
+          echo "npm resolves to: $npm_path"
+          case "$npm_path" in
+            "$HOME"/.safe-chain/shims/*)
+              echo "Safe Chain shim is active."
+              ;;
+            *)
+              echo "::error::npm does not resolve to a Safe Chain shim ($npm_path); dependency installs would be unprotected."
+              exit 1
+              ;;
+          esac
+
+      # Malware findings from Aikido Intel fail this step, blocking the PR.
+      - name: Install dependencies (scanned by Safe Chain)
+        run: npm ci
+
+      - name: Build blocks assets
+        run: npm run build
+
+      - name: Upload blocks build output
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: blocks-build
+          path: blocks/build
+          if-no-files-found: error
+          retention-days: 7

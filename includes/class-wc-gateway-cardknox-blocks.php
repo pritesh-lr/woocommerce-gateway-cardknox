@@ -145,6 +145,10 @@ final class WC_Gateway_Cardknox_Blocks_Support extends AbstractPaymentMethodType
             'softwareName' => get_bloginfo( 'name' ),
             'softwareVersion' => WC_CARDKNOX_VERSION,
             'testMode' => $gateway->get_option( 'testmode' ) === 'yes',
+            //---------------Start (1-Sep-2026 new code )----------------
+            'enable3ds' => $gateway->get_option( 'enable-3ds' ),
+            'threedsEnv' => $gateway->get_option( '3ds-env' ),
+            //---------------End (1-Sep-2026 new code )----------------
             'savedCards' => $this->get_saved_cards(),
         );
     }

@@ -448,16 +448,19 @@ class WC_Gateway_Cardknox extends WC_Payment_Gateway_CC
 
         $suffix = defined('SCRIPT_DEBUG') && SCRIPT_DEBUG ? '' : '.min';
 
-        $blocks_scripts_registered = wp_script_is('wc-cardknox-blocks', 'registered') || wp_script_is('wc-cardknox-blocks', 'enqueued');
+        //---------------Start (1-Sep-2026 new code )----------------
+        $is_blocks_checkout = function_exists( 'wc_cardknox_is_blocks_checkout_active' )
+            ? wc_cardknox_is_blocks_checkout_active()
+            : false;
         $ifields_already_registered = wp_script_is('cardknox-ifields', 'registered') || wp_script_is('cardknox-ifields', 'enqueued') || wp_script_is('cardknox', 'enqueued');
 
         // Avoid loading iFields twice (classic + blocks) which causes global redeclaration errors
-        if (! $ifields_already_registered) {
+        if (! $is_blocks_checkout && ! $ifields_already_registered) {
             wp_enqueue_script('cardknox', CARDKNOX_IFIELDS_URL, '', '1.0.0', false);
         }
 
         // Do not enqueue the classic checkout controller when using the Blocks checkout
-        if (! $blocks_scripts_registered) {
+        if (! $is_blocks_checkout) {
             wp_enqueue_script(
                 'woocommerce_cardknox',
                 plugins_url('assets/js/cardknox' . $suffix . '.js', WC_CARDKNOX_MAIN_FILE),
@@ -466,6 +469,7 @@ class WC_Gateway_Cardknox extends WC_Payment_Gateway_CC
                 true
             );
         }
+        //---------------End (1-Sep-2026 new code )----------------
         
 
         $token_key = $this->token_key;
@@ -489,7 +493,11 @@ class WC_Gateway_Cardknox extends WC_Payment_Gateway_CC
         // merge localized messages to be use in JS
         $cardknox_params = array_merge($cardknox_params, $this->get_localized_messages());
 
-        wp_localize_script('woocommerce_cardknox', 'wc_cardknox_params', apply_filters('wc_cardknox_params', $cardknox_params));
+        //---------------Start (1-Sep-2026 new code )----------------
+        if (! $is_blocks_checkout) {
+            wp_localize_script('woocommerce_cardknox', 'wc_cardknox_params', apply_filters('wc_cardknox_params', $cardknox_params));
+        }
+        //---------------End (1-Sep-2026 new code )----------------
     }
 
     /**
@@ -555,6 +563,15 @@ class WC_Gateway_Cardknox extends WC_Payment_Gateway_CC
             if ($month !== '' && $year_short !== '') {
                 $postData['xExp'] = sprintf('%02d%s', (int) $month, $year_short);
             }
+
+            //---------------Start (1-Sep-2026 new code )----------------
+            if (!empty($req['x3dsInitializeStatus'])) {
+                $postData['x3dsInitializeStatus'] = $req['x3dsInitializeStatus'];
+            }
+            if (!empty($req['x3dsReferenceId'])) {
+                $postData['x3dsReferenceId'] = $req['x3dsReferenceId'];
+            }
+            //---------------End (1-Sep-2026 new code )----------------
 
             // Don't call validate_payment_data for block editor as tokens are already validated
             return $postData;

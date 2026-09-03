@@ -86,6 +86,33 @@ add_action('init', function() {
     }
 }, 5);
 
+//---------------Start (1-Sep-2026 new code )----------------
+/**
+ * Detect whether the current request is using WooCommerce Checkout Block.
+ *
+ * @return bool
+ */
+function wc_cardknox_is_blocks_checkout_active() {
+    if ( ! function_exists( 'has_block' ) ) {
+        return false;
+    }
+
+    if ( is_checkout() && has_block( 'woocommerce/checkout' ) ) {
+        return true;
+    }
+
+    if ( function_exists( 'wc_get_page_id' ) ) {
+        $checkout_page_id = wc_get_page_id( 'checkout' );
+
+        if ( $checkout_page_id && $checkout_page_id !== -1 ) {
+            return has_block( 'woocommerce/checkout', $checkout_page_id );
+        }
+    }
+
+    return false;
+}
+//---------------End (1-Sep-2026 new code )----------------
+
 
 if (!class_exists('WC_Cardknox')) :
 
@@ -234,7 +261,9 @@ if (!class_exists('WC_Cardknox')) :
          */
         public function enqueue_block_styles() {
 
-            $handle = 'wc-cardknox-ifields'; // your actual script handle
+            //---------------Start (1-Sep-2026 new code )----------------
+            $handle = 'cardknox-ifields';
+            //---------------End (1-Sep-2026 new code )----------------
             wp_add_inline_script(
                 $handle,
                 'window.wcCardknoxData = ' . wp_json_encode(
@@ -261,18 +290,9 @@ if (!class_exists('WC_Cardknox')) :
 
         private function isBlocksCheckoutActive() {
 
-            // If blocks or WooCommerce helpers are not available → not active.
-            if ( ! function_exists( 'has_block' ) || ! function_exists( 'wc_get_page_id' ) ) {
-                return false;
-            }
-
-            $checkout_page_id = wc_get_page_id( 'checkout' );
-
-            if ( $checkout_page_id && $checkout_page_id !== -1 ) {
-                return has_block( 'woocommerce/checkout', $checkout_page_id );
-            }
-
-            return false;
+            //---------------Start (1-Sep-2026 new code )----------------
+            return wc_cardknox_is_blocks_checkout_active();
+            //---------------End (1-Sep-2026 new code )----------------
         }
         
         /*

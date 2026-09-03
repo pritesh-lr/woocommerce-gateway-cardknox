@@ -71,9 +71,7 @@ const useCardknoxIFields = () => {
 			iFieldsKey,
 			softwareName,
 			softwareVersion,
-			//---------------Start (1-Sep-2026 new code )----------------
 			threedsEnv,
-			//---------------End (1-Sep-2026 new code )----------------
 			onUpdate, // (optional) last iFields state callback
 		}) => {
 			if (isInitializedRef.current) return;
@@ -312,14 +310,12 @@ const useCardknoxIFields = () => {
 				});
 			}
 
-			//---------------Start (1-Sep-2026 new code )----------------
 			// Initialize 3DS session (required by merchant account even when full 3DS challenge is disabled)
 			if (typeof window.enable3DS === 'function' && threedsEnv) {
 				window.setTimeout(() => {
 					window.enable3DS(threedsEnv, null);
 				}, 1000);
 			}
-			//---------------End (1-Sep-2026 new code )----------------
 
 			isInitializedRef.current = true;
 		},

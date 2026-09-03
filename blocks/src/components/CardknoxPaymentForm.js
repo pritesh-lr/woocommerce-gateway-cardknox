@@ -111,9 +111,7 @@ const CardknoxPaymentForm = (props) => {
                     iFieldsKey: settings.iFieldsKey,
                     softwareName: settings.softwareName || 'WooCommerce',
                     softwareVersion: settings.softwareVersion || '1.0.0',
-                    //---------------Start (1-Sep-2026 new code )----------------
                     threedsEnv: settings.threedsEnv || '',
-                    //---------------End (1-Sep-2026 new code )----------------
                     onUpdate: handleIFieldUpdate,
                 });
             }
@@ -198,10 +196,8 @@ const CardknoxPaymentForm = (props) => {
                         };
                     }
 
-                    //---------------Start (1-Sep-2026 new code )----------------
                     const x3dsInitializeStatus = document.getElementById('x3dsInitializeStatus')?.value || '';
                     const x3dsReferenceId = document.getElementById('x3dsReferenceId')?.value || '';
-                    //---------------End (1-Sep-2026 new code )----------------
 
                     return {
                         type: emitRes.responseTypes.SUCCESS,
@@ -213,10 +209,8 @@ const CardknoxPaymentForm = (props) => {
                                 cardknox_exp_year: card.expiryYear,
                                 cardknox_save_card: saveCardRef.current ? 'yes' : 'no',
                                 'wc-cardknox-new-payment-method': saveCardRef.current ? '1' : '',
-                                //---------------Start (1-Sep-2026 new code )----------------
                                 x3dsInitializeStatus,
                                 x3dsReferenceId,
-                                //---------------End (1-Sep-2026 new code )----------------
                             },
                         },
                     };

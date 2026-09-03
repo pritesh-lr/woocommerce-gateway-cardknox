@@ -86,7 +86,6 @@ add_action('init', function() {
     }
 }, 5);
 
-//---------------Start (1-Sep-2026 new code )----------------
 /**
  * Detect whether the current request is using WooCommerce Checkout Block.
  *
@@ -111,7 +110,6 @@ function wc_cardknox_is_blocks_checkout_active() {
 
     return false;
 }
-//---------------End (1-Sep-2026 new code )----------------
 
 
 if (!class_exists('WC_Cardknox')) :
@@ -261,9 +259,8 @@ if (!class_exists('WC_Cardknox')) :
          */
         public function enqueue_block_styles() {
 
-            //---------------Start (1-Sep-2026 new code )----------------
             $handle = 'cardknox-ifields';
-            //---------------End (1-Sep-2026 new code )----------------
+
             wp_add_inline_script(
                 $handle,
                 'window.wcCardknoxData = ' . wp_json_encode(
@@ -290,9 +287,7 @@ if (!class_exists('WC_Cardknox')) :
 
         private function isBlocksCheckoutActive() {
 
-            //---------------Start (1-Sep-2026 new code )----------------
             return wc_cardknox_is_blocks_checkout_active();
-            //---------------End (1-Sep-2026 new code )----------------
         }
         
         /*
